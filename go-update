@@ -1,0 +1,19 @@
+#!/bin/bash
+
+GO_VERSION=${1}
+
+if [ $GO_VERSION = "latest" ]; then
+    GO_VERSION=$(curl "https://go.dev/VERSION?m=text")
+fi
+
+if [[ $GO_VERSION != go* ]]; then
+    GO_VERSION="go$GO_VERSION"
+fi
+
+FILE="${GO_VERSION}.linux-amd64.tar.gz"
+
+curl -JL --progress-bar https://go.dev/dl/$FILE  --output /tmp/$FILE
+chmod 777 /tmp/$FILE
+rm -rf /usr/local/go
+tar -C /usr/local -xzf /tmp/$FILE
+rm /tmp/$FILE
