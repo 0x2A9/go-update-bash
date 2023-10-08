@@ -3,7 +3,7 @@
 GO_VERSION=${1}
 
 if [ $GO_VERSION = "latest" ]; then
-    GO_VERSION=$(curl "https://go.dev/VERSION?m=text")
+    GO_VERSION=$(curl --silent "https://go.dev/VERSION?m=text" 2>&1 | grep -E "go([[:digit:]]{1,}\.){1,}[[:digit:]]{1,}")
 fi
 
 if [[ $GO_VERSION != go* ]]; then
@@ -16,4 +16,9 @@ curl -JL --progress-bar https://go.dev/dl/$FILE  --output /tmp/$FILE
 chmod 777 /tmp/$FILE
 rm -rf /usr/local/go
 tar -C /usr/local -xzf /tmp/$FILE
+
+if [ $? -eq 0 ]; then
+    echo Done!
+fi
+
 rm /tmp/$FILE
