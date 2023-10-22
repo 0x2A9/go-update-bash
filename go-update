@@ -1,21 +1,111 @@
 #!/bin/bash
 
+set -e
+
 GO_VERSION=${1}
+OS=${2}
+ARCH=${3}
+
+function in_list() {
+    local LIST=$1
+    local DELIMITER=$2
+    local VALUE=$3
+    local LIST_WHITESPACES=`echo $LIST | tr "$DELIMITER" " "`
+
+    for x in $LIST_WHITESPACES; do
+        if [ "$x" = "$VALUE" ]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+function has_param() {
+    local FLAG=$1
+    shift
+
+    for ARG; do
+        if [[ $ARG == "$FLAG" ]]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+if [ -z $GO_VERSION ]; then
+    read -p "Enter GO version: " GO_VERSION
+fi
+
+if [[ ! "${GO_VERSION}" =~ ^(go)?([[:digit:]]{1,}\.){1,}[[:digit:]]{1,}$ && $GO_VERSION != "latest" ]]; then 
+    echo "Wrong version format"
+    exit 1
+fi
 
 if [ $GO_VERSION = "latest" ]; then
     GO_VERSION=$(curl --silent "https://go.dev/VERSION?m=text" 2>&1 | grep -E "go([[:digit:]]{1,}\.){1,}[[:digit:]]{1,}")
 fi
 
 if [[ $GO_VERSION != go* ]]; then
-    GO_VERSION="go$GO_VERSION"
+    GO_VERSION="go${GO_VERSION}"
 fi
 
-FILE="${GO_VERSION}.linux-amd64.tar.gz"
+if ! has_param '-d' "$@" && [ -z $OS ]; then
+    OS_LIST="linux/darwin/windows"
+    read -p "Choose OS (${OS_LIST}): " OS
+
+    OS=$(echo $OS | tr "[:upper:]" "[:lower:]")
+
+    
+    if [ -z $OS ]; then
+        echo "OS value is empty"
+        exit 1
+    elif ! in_list "$OS_LIST" "/" $OS; then
+        echo "${OS} is not available"
+        exit 1
+    elif [ $OS = "windows" ]; then
+        echo "${OS} is not supported yet"
+        exit 1
+    fi
+fi
+
+if ! has_param '-d' "$@" && [ -z $ARCH ]; then
+    ARCH_LIST="amd64/386/arm64"
+    read -p "Choose architecture (${ARCH_LIST}): " ARCH
+
+    ARCH=$(echo $ARCH | tr "[:upper:]" "[:lower:]")
+
+    if [ -z $ARCH ]; then
+        echo "Architecture value is empty"
+        exit 1
+    elif ! in_list "$ARCH_LIST" "/" $ARCH; then
+        echo "${ARCH} is not available"
+        exit 1
+    fi
+fi
+
+if has_param '-d' "$@"; then 
+    OS="linux"
+    ARCH="amd64"
+fi
+
+if [ $OS = "windows" ]; then 
+    COMPRESSION="zip"
+else
+    COMPRESSION="tar.gz"    
+fi
+
+FILE="${GO_VERSION}.${OS}-${ARCH}.${COMPRESSION}"
 
 curl -JL --progress-bar https://go.dev/dl/$FILE  --output /tmp/$FILE
 chmod 777 /tmp/$FILE
 rm -rf /usr/local/go
-tar -C /usr/local -xzf /tmp/$FILE
+
+if [ $OS = "windows" ]; then 
+    echo "Implementation is in development"
+    # todo unzip for windows
+else
+    tar -C /usr/local -xzf /tmp/$FILE 
+fi
 
 if [ $? -eq 0 ]; then
     echo Done!
